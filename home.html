@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Textio - Social Media Login</title>
+<style>
+body { 
+  font-family: Arial, sans-serif; 
+  background:#f0f2f5; 
+  display:flex; 
+  justify-content:center; 
+  align-items:center; 
+  height:100vh; 
+  margin:0;
+}
+.container { 
+  background:#fff; 
+  padding:30px 40px; 
+  border-radius:12px; 
+  box-shadow:0 4px 20px rgba(0,0,0,0.1); 
+  width:360px; 
+  text-align:center;
+}
+.logo-container {
+  width: 60%;
+  margin: 0 auto 20px auto;
+}
+.logo-container img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+input { 
+  width:100%; 
+  padding:10px; 
+  margin:10px 0; 
+  border-radius:8px; 
+  border:1px solid #ccc; 
+  outline:none; 
+}
+input:focus { border-color:#4267B2; }
+button { 
+  width:100%; 
+  padding:10px; 
+  background:#4267B2; 
+  color:#fff; 
+  border:none; 
+  border-radius:8px; 
+  cursor:pointer; 
+  font-size:16px; 
+  margin-top:10px;
+}
+button:hover { background:#365899; }
+p { font-size:14px; margin-top:15px; }
+a { color:#4267B2; text-decoration:none; cursor:pointer; }
+.hidden { display:none; }
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="container" id="loginContainer">
+  <div class="logo-container">
+    <img src="logo.png" alt="Textio Logo">
+  </div>
+  <input type="email" id="loginEmail" placeholder="ইমেইল">
+  <input type="password" id="loginPassword" placeholder="পাসওয়ার্ড">
+  <button id="loginBtn">লগইন</button>
+  <p>অ্যাকাউন্ট নেই? <a id="showSignup">সাইন আপ</a></p>
+  <p><a id="showReset">পাসওয়ার্ড রিসেট</a></p>
+</div>
+
+<!-- Signup -->
+<div class="container hidden" id="signupContainer">
+  <div class="logo-container">
+    <img src="logo.png" alt="Textio Logo">
+  </div>
+  <input type="text" id="signupName" placeholder="নাম">
+  <input type="email" id="signupEmail" placeholder="ইমেইল">
+  <input type="password" id="signupPassword" placeholder="পাসওয়ার্ড">
+  <input type="password" id="signupConfirmPassword" placeholder="পাসওয়ার্ড নিশ্চিত করুন">
+  <button id="signupBtn">সাইন আপ</button>
+  <p>ইতিমধ্যেই অ্যাকাউন্ট আছে? <a id="showLogin">লগইন</a></p>
+</div>
+
+<!-- Reset -->
+<div class="container hidden" id="resetContainer">
+  <div class="logo-container">
+    <img src="logo.png" alt="Textio Logo">
+  </div>
+  <input type="email" id="resetEmail" placeholder="ইমেইল">
+  <button id="resetBtn">রিসেট</button>
+  <p><a id="showLogin2">লগইন</a></p>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAOo_C6jSzmo29pmA8auVHJjUfhG_2VkPA",
+  authDomain: "socialmedia-f0aae.firebaseapp.com",
+  projectId: "socialmedia-f0aae",
+  storageBucket: "socialmedia-f0aae.appspot.com",
+  messagingSenderId: "235426334482",
+  appId: "1:235426334482:web:040fe1af1cc91d780d15cb",
+  measurementId: "G-GPLMY41F0J"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const loginContainer = document.getElementById('loginContainer');
+const signupContainer = document.getElementById('signupContainer');
+const resetContainer = document.getElementById('resetContainer');
+
+document.getElementById('showSignup').onclick = () => { loginContainer.classList.add('hidden'); signupContainer.classList.remove('hidden'); };
+document.getElementById('showLogin').onclick = () => { signupContainer.classList.add('hidden'); loginContainer.classList.remove('hidden'); };
+document.getElementById('showReset').onclick = () => { loginContainer.classList.add('hidden'); resetContainer.classList.remove('hidden'); };
+document.getElementById('showLogin2').onclick = () => { resetContainer.classList.add('hidden'); loginContainer.classList.remove('hidden'); };
+
+document.getElementById('signupBtn').onclick = async () => {
+  const name = document.getElementById('signupName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const pass = document.getElementById('signupPassword').value;
+  const confirmPass = document.getElementById('signupConfirmPassword').value;
+  if(pass !== confirmPass){ alert("পাসওয়ার্ড মিলছে না!"); return; }
+  if(pass.length < 6){ alert("পাসওয়ার্ড কমপক্ষে 6 অক্ষরের হতে হবে"); return; }
+
+  try{
+    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+    await setDoc(doc(db, "users", userCredential.user.uid), {
+      name, email, friends: [], requests: [], profile: { address:"", mobile:"", photo:"" }
+    });
+    await sendEmailVerification(userCredential.user);
+    alert("সাইন আপ সফল! ইমেইল ভেরিফিকেশন চেক করুন।");
+  }catch(err){ alert(err.message); }
+};
+
+document.getElementById('loginBtn').onclick = async () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPassword').value;
+  try{
+    const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+    if(!userCredential.user.emailVerified){ alert("ইমেইল ভেরিফাই করুন!"); return; }
+    window.location.href = "index.html";
+  }catch(err){ alert(err.message); }
+};
+
+document.getElementById('resetBtn').onclick = async () => {
+  const email = document.getElementById('resetEmail').value.trim();
+  try{ await sendPasswordResetEmail(auth, email); alert("রিসেট ইমেইল পাঠানো হয়েছে!"); }
+  catch(err){ alert(err.message); }
+};
+</script>
+</body>
+</html>

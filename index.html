@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home - Social Media</title>
+<style>
+/* ================= Reset & Base ================= */
+* { box-sizing:border-box; margin:0; padding:0; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: all 0.2s ease; }
+body { background:#e8f0f7; color:#222; font-size:13px; overflow:hidden; height:100vh; display:flex; flex-direction:column; }
+
+/* ================= Header ================= */
+header { 
+   background: linear-gradient(135deg, #f0f4ff, #ffffff);
+  color: #000;
+  padding:10px 16px; 
+  display:flex; 
+  justify-content:right; 
+  align-items:center; 
+  border-bottom:1px solid rgba(255,255,255,0.2); 
+  border-radius:0 0 12px 12px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.15);
+}
+header h1 { font-size:16px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px; }
+header button { padding:6px 14px; border:none; border-radius:20px; background:#fff; color:#4a90e2; font-weight:600; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+
+/* ================= Container ================= */
+.container { 
+  display: grid; 
+  grid-template-columns: 250px 1fr; 
+  gap: 6px; 
+  flex: 1; 
+  overflow: hidden; 
+  padding: 6px;
+  transition: grid-template-columns 0.3s ease;
+}
+
+.left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  padding: 3px;
+  max-height: 100%;
+  width: 150px;
+  min-width: 250px;
+  transition: transform 0.3s ease;
+  background: #f0f0f0;
+}
+
+.left h3 {
+  font-size: 13px;
+  color: #4a90e2;
+  margin-bottom: 3px;
+}
+
+.left.hide {
+  transform: translateX(-300px);
+}
+
+.container.sidebar-hidden {
+  grid-template-columns: 0 1fr;
+}
+
+
+/* ================= Floating Side bar Toggle ================= */
+.sidebar-toggle {
+  position: fixed;
+  top: 5px;
+  left: 5px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #007BFF;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background 0.2s;
+}
+
+.sidebar-toggle:hover {
+  background: #0056b3;
+}
+/* ================= MAIN LOGO ================= */
+.floating-logo {
+  position: absolute;
+  top: 0;                  /* স্ক্রিনের উপরের দিকে */
+  left: 100px;               /* হরাইজন্টালি কেন্দ্র */
+  transform: translateX(-50%); /* সেন্টার করার জন্য */
+  width: 100px;             /* লোগোর সাইজ */
+  height: 50px;
+  z-index: 9999;
+  pointer-events: none;    /* লোগো ক্লিক করতে বাধা দেবে না */
+}
+
+/* ================= Lists ================= */
+.user-list, .friend-list, .request-list, .chat-bubbles { 
+  max-height:260px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:#4a90e2 #e8f0f7; 
+  border-radius:12px; 
+}
+.user-list::-webkit-scrollbar, .friend-list::-webkit-scrollbar, .request-list::-webkit-scrollbar, .chat-bubbles::-webkit-scrollbar { width:6px; }
+.user-list::-webkit-scrollbar-thumb, .friend-list::-webkit-scrollbar-thumb, .request-list::-webkit-scrollbar-thumb, .chat-bubbles::-webkit-scrollbar-thumb { background:#4a90e2; border-radius:3px; }
+
+/* ================= Feed ================= */
+.center { display:flex; flex-direction:column; gap:10px; overflow-y:auto; max-height:100%; padding-right:5px; }
+.feed-item, .card, .comment-item { 
+  background:#fff; 
+  padding:12px; 
+  border-radius:16px; 
+  box-shadow:0 5px 12px rgba(0,0,0,0.08); 
+  margin-bottom:10px; 
+  border:1px solid rgba(255,255,255,0.3); 
+  font-size:13px; text-align:justify; 
+}
+.feed-item:hover, .comment-item:hover, .card:hover { transform:translateY(-3px); box-shadow:0 10px 20px rgba(0,0,0,0.12); }
+.feed-item h4 { margin-bottom:4px; font-size:14px; font-weight:600; color:#2f3640; }
+.feed-item p, .post-text { font-size:13px; line-height:1.4; color:#2d3436; }
+
+/* ================= Post Editor Sticky Bottom ================= */
+.post-card {
+  position:sticky;
+  bottom:60px;
+  background: rgba(255,255,255,0.95);
+  padding:10px;
+  border-top:1px solid rgba(0,0,0,0.1);
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  border-radius:12px 12px 0 0;
+  display: none;
+}
+/* ================= Post Input & Toolbar ================= */
+#postInput { 
+    min-height:120px; 
+    max-height:200px; 
+    overflow-y:auto; 
+    border-radius:12px; 
+    padding:6px; 
+    font-size:13px; 
+    background:#fff; 
+    border:1px solid #ccc; 
+    transition: 0.3s;
+display: none;
+}
+
+#toolbar { 
+    display: flex; 
+    gap: 6px; 
+    margin-bottom: 4px; 
+    flex-wrap: wrap; 
+    transition: 0.3s;
+    display: none;
+}
+
+/* Toolbar inputs/select/buttons */
+#toolbar select, 
+#toolbar button, 
+#toolbar input[type=color] { 
+    padding: 6px 10px; 
+    font-size: 13px; 
+    border-radius: 3px; /* হালকা চারকোণা */
+    border: 1px solid #ccc; 
+    cursor: pointer;
+    background: #f9f9f9;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Buttons style */
+#toolbar button { 
+    background: linear-gradient(135deg, #4a90e2, #6ab1ff); 
+    color: #fff; 
+    font-weight: 600; 
+    border: none; 
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* Hover effect */
+#toolbar button:hover, 
+#toolbar select:hover, 
+#toolbar input[type=color]:hover { 
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    border-color: #4a90e2;
+}
+
+/* Active click effect */
+#toolbar button:active {
+    transform: scale(0.96);
+}
+
+/* ================= Post Button ================= */
+.post-btn { padding:8px 16px; font-size:13px; border-radius:20px; background:#4a90e2; color:#fff; border:none; cursor:pointer; align-self:flex-end; box-shadow:0 2px 5px rgba(0,0,0,0.12); display: none; }
+
+/* ================= Toggle Textt Editor Hide and Show Button ================= */
+.toggle-bubble {
+    position: fixed;
+    bottom: 15px;
+    right: 15px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #4a90e2;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 9999;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.toggle-bubble:hover {
+    transform: scale(1.1);
+    background: #357ab8;
+}
+
+/* ================= Chat Bubbles ================= */
+.chat-bubble { width:50px; height:50px; font-size:12px; margin-bottom:8px; position:relative; cursor:pointer; border-radius:50%; background:#4a90e2; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:600; box-shadow:0 2px 6px rgba(0,0,0,0.12); }
+.chat-bubble .count { position:absolute; top:-4px; right:-4px; width:18px; height:18px; font-size:11px; background:red; color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+
+
+/* ================= User / Friend Item ================= */
+.user-item, .friend-item {
+  background: rgba(255,255,255,0.85);
+  padding:10px;
+  border-radius:8px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.08);
+  margin-bottom:8px;
+  display:flex;
+  flex-direction:column;   /* নাম উপরে, বাটন নিচে */
+  gap:6px;
+}
+
+/* Name Styling */
+.user-item .name, .friend-item span {
+  font-weight:700;      /* বোল্ড */
+  font-size:14px;       /* একটু বড় */
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+/* Status Dot */
+.status {
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  display:inline-block;
+}
+.status.online { background: #4cd137; }
+.status.offline { background: #dcdde1; }
+
+/* ================= Side Bar Buttons ================= */
+.user-item button,
+.friend-item button {
+  padding:4px 10px;       /* চিকন বাটন */
+  font-size:12px;
+  border-radius:6px;      /* হালকা কোণ */
+  font-weight:600;
+  cursor:pointer;
+  border:none;
+  box-shadow:0 1px 3px rgba(0,0,0,0.08);
+  transition:0.2s;
+}
+
+/* Primary Action (Add / Accept / Post) */
+button.add-friend,
+button.accept,
+button.reject,
+button#postBtn {
+  background:#4a90e2;
+  color:#fff;
+}
+button.add-friend:hover,
+button.accept:hover,
+button.reject:hover
+button#postBtn:hover {
+  background:#357ab7;
+  transform:translateY(-1px);
+}
+
+/* Danger Action (Unfriend / Reject) */
+button.unfriend-btn,
+button.reject {
+  background:#ff5c5c;
+  color:#fff;
+}
+button.unfriend-btn:hover,
+button.reject:hover {
+  background:#e03b3b;
+  transform:translateY(-1px);
+}
+
+/* Secondary Action (Chat) */
+button.chat-btn {
+  background:#7ed6df;
+  color:#fff;
+}
+button.chat-btn:hover {
+  background:#50c0c8;
+  transform:translateY(-1px);
+}
+
+
+/* ================= Post Card Buttons ================= */
+.post-actions button,
+.read-more-btn {
+  padding:4px 10px;         /* চিকন বাটন */
+  font-size:12px;
+  border-radius:6px;        /* হালকা কোণ */
+  font-weight:600;
+  cursor:pointer;
+  border:none;
+  margin-right:4px;
+  margin-top:4px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.08);
+  transition:0.2s;
+}
+
+/* Primary Action (Like / Read More / Edit / Post) */
+button.like-btn,
+button.edit-post-btn,
+.read-more-btn {
+  background:#4a90e2;
+  color:#fff;
+}
+button.like-btn:hover,
+button.edit-post-btn:hover,
+.read-more-btn:hover {
+  background:#357ab7;
+  transform:translateY(-1px);
+}
+
+/* Danger Action (Delete) */
+button.delete-btn {
+  background:#ff5c5c;
+  color:#fff;
+}
+button.delete-btn:hover {
+  background:#e03b3b;
+  transform:translateY(-1px);
+}
+
+/* Secondary Action (Comment) */
+button.comment-btn {
+  background:#7ed6df;
+  color:#fff;
+}
+button.comment-btn:hover {
+  background:#50c0c8;
+  transform:translateY(-1px);
+}
+
+/* Comment Input Field */
+.comment-input {
+  padding:6px 8px;
+  border-radius:6px;
+  border:1px solid #ccc;
+  font-size:12px;
+  box-sizing:border-box;
+}
+
+</style>
+</head>
+<body>
+<header>
+ <img src="logo.png" alt="লোগো" class="floating-logo">
+  </h1>
+    <h1 id="profileHeader">
+    <span id="profileName">প্রোফাইল</span>
+ </h1>
+<button id="logoutBtn">লগআউট</button>
+ <button id="toggleSidebar" class="sidebar-toggle">☰</button>
+       </button>
+</header>
+
+<div class="container">
+  <div class="left">
+          <h3>নতুন মেসেজ</h3>
+    <div class="chat-bubbles" id="chatBubbles"></div>
+    <h3>ফ্রেন্ড রিকোয়েস্ট</h3>
+    <div class="request-list" id="requestList"></div>
+    <h3>ফ্রেন্ড লিস্ট</h3>
+    <div class="friend-list" id="friendList"></div>
+    <h3>ইউজার লিস্ট</h3>
+    <div class="user-list" id="userList"></div>
+  </div>
+
+  <div class="center">
+    <h3>নিউজ ফিড</h3>
+    <div id="feed"></div>
+
+    <!-- Sticky Post Editor -->
+    <div class="post-card">
+      <div id="toolbar">
+        <select id="fontSelect">
+          <option value="Arial">Arial</option>
+          <option value="Tahoma">Tahoma</option>
+          <option value="Verdana">Verdana</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Courier New">Courier New</option>
+        </select>
+        <select id="fontSizeSelect">
+          <option value="1">10px</option>
+          <option value="2">12px</option>
+          <option value="3" selected>14px</option>
+          <option value="4">18px</option>
+          <option value="5">24px</option>
+          <option value="6">32px</option>
+          <option value="7">48px</option>
+        </select>
+        <input type="color" id="fontColor" value="#000000">
+        <input type="color" id="bgColor" value="#ffffff">
+        <label>BG:</label><input type="color" id="postBgColor" value="#ffffff">
+        <button data-command="bold"><b>B</b></button>
+        <button data-command="italic"><i>I</i></button>
+        <button data-command="underline"><u>U</u></button>
+        <button data-command="strikeThrough"><s>S</s></button>
+        <button data-command="justifyLeft">L</button>
+        <button data-command="justifyCenter">C</button>
+        <button data-command="justifyRight">R</button>
+        <button data-command="justifyFull">J</button>
+      </div>
+      <div id="postInput" class="post-input" contenteditable="true"></div>
+      <button id="postBtn" class="post-btn">পোস্ট করুন</button>
+    </div>
+<button id="toggleeditBtn" class="toggle-bubble">✎</button>
+  </div>
+</div>
+
+
+ <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, collection, getDocs, updateDoc, addDoc, query, orderBy, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAOo_C6jSzmo29pmA8auVHJjUfhG_2VkPA",
+  authDomain: "socialmedia-f0aae.firebaseapp.com",
+  projectId: "socialmedia-f0aae",
+  storageBucket: "socialmedia-f0aae.appspot.com",
+  messagingSenderId: "235426334482",
+  appId: "1:235426334482:web:040fe1af1cc91d780d15cb"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const userListDiv = document.getElementById('userList');
+const friendListDiv = document.getElementById('friendList');
+const requestListDiv = document.getElementById('requestList');
+const feedDiv = document.getElementById('feed');
+const postInput = document.getElementById('postInput');
+const postBtn = document.getElementById('postBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const profileHeader = document.getElementById('profileHeader');
+const profileName = document.getElementById('profileName');
+const profileImg = document.getElementById('profileImg');
+const chatBubblesDiv = document.getElementById('chatBubbles');
+
+const fontSelect = document.getElementById('fontSelect');
+const fontSizeSelect = document.getElementById('fontSizeSelect');
+const fontColor = document.getElementById('fontColor');
+const bgColor = document.getElementById('bgColor');
+const postBgColorInput = document.getElementById('postBgColor');
+const toolbarButtons = document.querySelectorAll('#toolbar button');
+
+let currentUser, currentUserData;
+
+function isMobile() { return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent); }
+
+// ------------------ Rich Text Editor Commands -------------------
+toolbarButtons.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.execCommand(btn.dataset.command, false, null);
+  });
+});
+fontSelect.onchange = ()=> document.execCommand("fontName", false, fontSelect.value);
+fontSizeSelect.onchange = ()=> document.execCommand("fontSize", false, fontSizeSelect.value);
+fontColor.onchange = ()=> document.execCommand("foreColor", false, fontColor.value);
+bgColor.onchange = ()=> document.execCommand("backColor", false, bgColor.value);
+
+// ------------------ Auth State -------------------
+onAuthStateChanged(auth, async user=>{
+  if(!user){ window.location.href='home.html'; return; }
+  currentUser=user;
+  const userSnap = await getDoc(doc(db,'users',user.uid));
+  currentUserData = userSnap.data();
+
+  profileName.textContent = currentUserData.name || "প্রোফাইল";
+
+  // Set Online status
+  const statusRef = doc(db,'status',currentUser.uid);
+  await setDoc(statusRef,{state:'online', lastChanged: new Date()}, {merge:true});
+  window.addEventListener('focus', async ()=>{ await updateDoc(statusRef,{state:'online', lastChanged: new Date()}); });
+  window.addEventListener('blur', async ()=>{ await updateDoc(statusRef,{state:'offline', lastChanged: new Date()}); });
+  window.addEventListener('beforeunload', async ()=>{ await updateDoc(statusRef,{state:'offline', lastChanged: new Date()}); });
+
+  loadUsers();
+  loadFriends();
+  loadRequests();
+  loadFeed();
+  loadChatBubbles();
+});
+
+profileHeader.onclick = ()=> window.location.href = 'profile.html';
+logoutBtn.onclick = async ()=>{ await updateDoc(doc(db,'status',currentUser.uid), {state:'offline', lastChanged: new Date()}); signOut(auth).then(()=>window.location.href='index.html'); };
+
+// ------------------ Users -------------------
+async function loadUsers(){
+  userListDiv.innerHTML='';
+  const usersSnap = await getDocs(collection(db,'users'));
+  usersSnap.forEach(async docSnap=>{
+    if(docSnap.id!==currentUser.uid){
+      const data = docSnap.data();
+      const div = document.createElement('div'); div.classList.add('user-item');
+      const nameSpan = document.createElement('span'); nameSpan.classList.add('name');
+
+      const statusDot = document.createElement('span'); statusDot.classList.add('status','offline');
+      const statusRef = doc(db,'status',docSnap.id);
+      onSnapshot(statusRef, snap=>{
+        if(snap.exists() && snap.data().state==='online'){ statusDot.classList.remove('offline'); statusDot.classList.add('online'); }
+        else { statusDot.classList.remove('online'); statusDot.classList.add('offline'); }
+      });
+
+      nameSpan.appendChild(statusDot);
+      nameSpan.appendChild(document.createTextNode(data.name));
+
+      const addBtn = document.createElement('button');
+      if(currentUserData.friends?.includes(docSnap.id)){
+        addBtn.textContent='Unfriend'; addBtn.classList.add('unfriend-btn');
+        addBtn.onclick = ()=> unfriendUser(docSnap.id);
+      }else{
+        addBtn.textContent='Add'; addBtn.classList.add('add-friend');
+        addBtn.onclick = ()=> sendRequest(docSnap.id);
+      }
+
+      div.appendChild(nameSpan); div.appendChild(addBtn);
+      userListDiv.appendChild(div);
+    }
+  });
+}
+
+// ------------------ Friends -------------------
+async function loadFriends(){
+  friendListDiv.innerHTML='';
+  for(const fid of currentUserData.friends || []){
+    const fSnap = await getDoc(doc(db,'users',fid));
+    const div = document.createElement('div'); div.classList.add('friend-item');
+
+    const statusDot = document.createElement('span'); statusDot.classList.add('status','offline');
+    const statusRef = doc(db,'status',fid);
+    onSnapshot(statusRef, snap=>{
+      if(snap.exists() && snap.data().state==='online'){ statusDot.classList.remove('offline'); statusDot.classList.add('online'); }
+      else { statusDot.classList.remove('online'); statusDot.classList.add('offline'); }
+    });
+
+    const nameSpan = document.createElement('span'); nameSpan.textContent = fSnap.data().name;
+
+    const chatBtn = document.createElement('button'); chatBtn.textContent='Chat'; chatBtn.classList.add('chat-btn');
+    chatBtn.onclick = ()=> {
+      const url = `chat.html?uid=${fid}`;
+      if(isMobile()){ window.location.href=url; } else { window.open(url,'_blank','width=400,height=600'); }
+    };
+
+    const unfriendBtn = document.createElement('button'); unfriendBtn.textContent='Unfriend'; unfriendBtn.classList.add('unfriend-btn');
+    unfriendBtn.onclick = ()=> unfriendUser(fid);
+
+    div.appendChild(statusDot); div.appendChild(nameSpan); div.appendChild(chatBtn); div.appendChild(unfriendBtn);
+    friendListDiv.appendChild(div);
+  }
+}
+
+// ------------------ Friend Requests -------------------
+async function loadRequests(){
+  requestListDiv.innerHTML = '';
+  const reqs = currentUserData.requests || [];
+  for(const rid of reqs){
+    const rSnap = await getDoc(doc(db,'users',rid));
+    const div = document.createElement('div'); div.classList.add('request-item');
+    const status = document.createElement('span'); status.classList.add('status', rSnap.data().online?'online':'offline');
+    const nameSpan = document.createElement('span'); nameSpan.textContent = rSnap.data().name;
+    const msgSpan = document.createElement('span'); msgSpan.textContent = rSnap.data().messages?.[rid] || '';
+    const acceptBtn = document.createElement('button'); acceptBtn.textContent = 'Accept'; acceptBtn.classList.add('accept');
+    acceptBtn.onclick = async ()=>{
+      const currentRef = doc(db,'users',currentUser.uid);
+      const senderRef = doc(db,'users',rid);
+      await updateDoc(currentRef,{friends:[...currentUserData.friends||[],rid], requests: currentUserData.requests.filter(r=>r!==rid)});
+      const senderSnap = await getDoc(senderRef);
+      await updateDoc(senderRef,{friends:[...(senderSnap.data().friends||[]),currentUser.uid]});
+      alert("ফ্রেন্ড যোগ করা হয়েছে!");
+      location.reload();
+    };
+    const rejectBtn = document.createElement('button'); rejectBtn.textContent = 'Reject'; rejectBtn.classList.add('reject');
+    rejectBtn.onclick = async ()=>{
+      const currentRef = doc(db,'users',currentUser.uid);
+      await updateDoc(currentRef,{requests: currentUserData.requests.filter(r=>r!==rid)});
+      alert("রিকোয়েস্ট বাতিল করা হয়েছে!");
+      location.reload();
+    };
+    div.appendChild(status); div.appendChild(nameSpan); div.appendChild(msgSpan); div.appendChild(acceptBtn); div.appendChild(rejectBtn);
+    requestListDiv.appendChild(div);
+  }
+}
+
+// ------------------ Feed -------------------
+postBtn.onclick = async ()=>{
+  const htmlContent = postInput.innerHTML.trim();
+  const bgColorValue = postBgColorInput.value || '#ffffff';
+  if(!htmlContent) return;
+  await addDoc(collection(db,'posts'),{
+    html: htmlContent,
+    userId: currentUser.uid,
+    name: currentUserData.name,
+    timestamp: new Date(),
+    likes:0,
+    comments:[],
+    bgColor:bgColorValue
+  });
+  postInput.innerHTML='';
+};
+
+// ------------------ Load Feed -------------------
+async function loadFeed() {
+  const postsRef = collection(db, 'posts');
+  const q = query(postsRef, orderBy('timestamp', 'desc'));
+
+  onSnapshot(q, snap => {
+    feedDiv.innerHTML = '';
+
+    snap.forEach(docSnap => {
+      const data = docSnap.data();
+      const div = document.createElement('div');
+      div.classList.add('feed-item');
+      div.dataset.id = docSnap.id;
+      div.style.background = data.bgColor || '#fff';
+
+      // পোস্টের টেক্সট লম্বা কিনা চেক
+      const fullContent = data.html || '';
+      const isLong = fullContent.length > 200;
+      const shortContent = isLong ? fullContent.slice(0, 200) + '...' : fullContent;
+
+      // Comments HTML
+      const commentsHTML = (data.comments || []).map((c, i) => `
+        <div class="comment-item">
+          <span>${c.text}</span>
+          ${c.userId === currentUser.uid ? `<button class="edit-btn" data-index="${i}">Edit</button><button class="delete-btn" data-index="${i}">Remove</button>` : ''}
+        </div>
+      `).join('');
+
+      // পোস্টের HTML
+      div.innerHTML = `
+        <h4>
+        ${data.name}
+        </h4>
+	</div>
+        <div class="post-content">
+          <div class="post-text">${shortContent}</div>
+          ${isLong ? '<button class="read-more-btn">Read More</button>' : ''}
+        </div>
+
+        <div class="post-actions">
+          <button class="like-btn">Like (${data.likes || 0})</button>
+          <button class="comment-btn">Comment</button>
+          ${data.userId === currentUser.uid ? '<button class="edit-post-btn">Edit</button><button class="delete-btn">Delete</button>' : ''}
+        </div>
+
+        <div class="comments">${commentsHTML}</div>
+        <input type="text" class="comment-input" placeholder="কমেন্ট লিখুন..." style="width:100%;margin-top:5px;display:none;">
+      `;
+
+      // Read More / Less
+      if (isLong) {
+        const readMoreBtn = div.querySelector('.read-more-btn');
+        const postTextDiv = div.querySelector('.post-text');
+        let expanded = false;
+        readMoreBtn.onclick = () => {
+          expanded = !expanded;
+          postTextDiv.innerHTML = expanded ? fullContent : shortContent;
+          readMoreBtn.textContent = expanded ? 'Read Less' : 'Read More';
+        }
+      }
+
+      // Like Button
+      const likeBtn = div.querySelector('.like-btn');
+      likeBtn.onclick = async () => {
+        try {
+          await updateDoc(doc(db, 'posts', docSnap.id), { likes: (data.likes || 0) + 1 });
+        } catch (err) { console.error(err); }
+      }
+
+      // Comment Button
+      const commentBtn = div.querySelector('.comment-btn');
+      const commentInput = div.querySelector('.comment-input');
+      commentBtn.onclick = () => {
+        commentInput.style.display = commentInput.style.display === 'none' ? 'block' : 'none';
+        commentInput.focus();
+      }
+
+      // Submit Comment on Enter
+      commentInput.onkeydown = async e => {
+        if (e.key === 'Enter' && commentInput.value.trim() !== '') {
+          try {
+            const postRef = doc(db, 'posts', docSnap.id);
+            const newComment = { text: commentInput.value.trim(), userId: currentUser.uid };
+            await updateDoc(postRef, { comments: [...(data.comments || []), newComment] });
+            commentInput.value = '';
+          } catch(err){ console.error(err); }
+        }
+      }
+
+      // Delete Post
+      const deleteBtn = div.querySelector('.post-actions .delete-btn');
+      if (deleteBtn) {
+        deleteBtn.onclick = async () => {
+          if (confirm('পোস্ট মুছে ফেলতে চান?')) {
+            try { await deleteDoc(doc(db, 'posts', docSnap.id)); } catch(err){ console.error(err); }
+          }
+        }
+      }
+
+      // Edit Post
+      const editPostBtn = div.querySelector('.post-actions .edit-post-btn');
+      if(editPostBtn){
+        editPostBtn.onclick = async () => {
+          const newContent = prompt('পোস্ট এডিট করুন:', data.html);
+          if(newContent !== null){
+            try {
+              await updateDoc(doc(db, 'posts', docSnap.id), { html: newContent });
+            } catch(err){ console.error(err); }
+          }
+        }
+      }
+
+      // Comment Edit / Delete
+      div.querySelectorAll('.comment-item .edit-btn').forEach(btn => {
+        btn.onclick = async () => {
+          const index = btn.dataset.index;
+          const newText = prompt('কমেন্ট এডিট করুন:', data.comments[index].text);
+          if (newText) {
+            try {
+              const postRef = doc(db, 'posts', docSnap.id);
+              const updatedComments = [...data.comments];
+              updatedComments[index].text = newText;
+              await updateDoc(postRef, { comments: updatedComments });
+            } catch(err){ console.error(err); }
+          }
+        }
+      });
+
+      div.querySelectorAll('.comment-item .delete-btn').forEach(btn => {
+        btn.onclick = async () => {
+          const index = btn.dataset.index;
+          if (confirm('কমেন্ট মুছে ফেলতে চান?')) {
+            try {
+              const postRef = doc(db, 'posts', docSnap.id);
+              const updatedComments = [...data.comments];
+              updatedComments.splice(index, 1);
+              await updateDoc(postRef, { comments: updatedComments });
+            } catch(err){ console.error(err); }
+          }
+        }
+      });
+
+      feedDiv.appendChild(div);
+    });
+  });
+}
+
+
+// ------------------ Chat Bubbles -------------------
+async function loadChatBubbles(){
+  chatBubblesDiv.innerHTML='';
+  for(const fid of currentUserData.friends || []){
+    const chatId = [currentUser.uid, fid].sort().join("_");
+    const messagesRef = collection(db,'chats',chatId,'messages');
+    const q = query(messagesRef, orderBy('timestamp'));
+    onSnapshot(q, snap=>{
+      let unreadCount = 0;
+      snap.forEach(msgDoc=>{
+        const data = msgDoc.data();
+        if(data.sender===fid && !(data.readBy?.includes(currentUser.uid))) unreadCount++;
+      });
+
+      let bubble = chatBubblesDiv.querySelector(`[data-fid="${fid}"]`);
+      if(!bubble){
+        bubble = document.createElement('div');
+        bubble.classList.add('chat-bubble');
+        bubble.dataset.fid = fid;
+        bubble.textContent = '💬';
+        bubble.onclick = ()=> window.location.href=`chat.html?uid=${fid}`;
+        const countDiv = document.createElement('div'); countDiv.classList.add('count');
+        bubble.appendChild(countDiv);
+        chatBubblesDiv.appendChild(bubble);
+      }
+
+      const countDiv = bubble.querySelector('.count');
+      countDiv.textContent = unreadCount>0 ? unreadCount : '';
+    });
+  }
+}
+
+// ------------------ Friend Request / Unfriend -------------------
+async function sendRequest(uid){
+  const ref = doc(db,'users',uid);
+  const snap = await getDoc(ref);
+  await updateDoc(ref,{ requests:[...(snap.data().requests||[]), currentUser.uid] });
+  alert('রিকোয়েস্ট পাঠানো হয়েছে!');
+}
+async function unfriendUser(uid){
+  if(!confirm('ফ্রেন্ড তালিকা থেকে সরাতে চান?')) return;
+  await updateDoc(doc(db,'users',currentUser.uid), { friends: currentUserData.friends.filter(f=>f!==uid) });
+  const snap = await getDoc(doc(db,'users',uid));
+  await updateDoc(doc(db,'users',uid), { friends: snap.data().friends.filter(f=>f!==currentUser.uid) });
+  location.reload();
+}
+// Sidebar toggle
+    const container = document.querySelector('.container');
+    const left = document.querySelector('.left');
+    const toggleSidebarBtn = document.getElementById('toggleSidebar');
+
+    // Ensure it's hidden on load
+    left.classList.add('hide');
+    container.classList.add('sidebar-hidden');
+
+    toggleSidebarBtn.addEventListener('click', () => {
+        left.classList.toggle('hide');
+        container.classList.toggle('sidebar-hidden');
+    });
+
+document.addEventListener('DOMContentLoaded', () => {
+    const toggleeditBtn = document.getElementById('toggleeditBtn');
+    const postInput = document.getElementById('postInput');
+    const toolbar = document.getElementById('toolbar');
+    const postBtn = document.querySelector('.post-btn');
+    const postCard = document.querySelector('.post-card'); // Post-card element
+
+    // শুরুতে হাইড থাকবে
+    postInput.style.display = 'none';
+    toolbar.style.display = 'none';
+    postBtn.style.display = 'none';
+    if (postCard) postCard.style.display = 'none';
+
+    toggleeditBtn.addEventListener('click', () => {
+        const isHidden = postInput.style.display === 'none';
+
+        postInput.style.display = isHidden ? 'block' : 'none';
+        toolbar.style.display = isHidden ? 'flex' : 'none';
+        postBtn.style.display = isHidden ? 'inline-block' : 'none';
+        if (postCard) postCard.style.display = isHidden ? 'flex' : 'none';
+    });
+});
+
+</script>
+</body>
+</html>

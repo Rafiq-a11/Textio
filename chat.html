@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Chat with Emoji & Friends</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap">
+<style>
+:root { --primary:#4267B2; --light-bg:#f0f2f5; --dark-bg:#18191a; --sent-bg:#4267B2; --received-bg:#e5e5ea; --sent-color:#fff; --received-color:#000; }
+
+body { margin:0; font-family:'Roboto',sans-serif; display:flex; flex-direction:column; height:100vh; user-select:none; background:var(--light-bg); transition: background 0.3s; }
+.dark-theme { background:var(--dark-bg); color:#e4e6eb; }
+
+header { background:var(--primary); color:#fff; padding:15px; display:flex; justify-content:space-between; align-items:center; }
+header button { padding:6px 10px; border:none; border-radius:6px; cursor:pointer; background:#fff; color:var(--primary); font-weight:bold; }
+
+#friendList { background:#fff; padding:10px; max-height:150px; overflow-y:auto; border-bottom:1px solid #ccc; display:none; }
+.friend { padding:8px 10px; border-radius:8px; margin-bottom:5px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+.friend:hover { background:#f0f0f0; }
+
+#chatContainer { flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; }
+.message { padding:10px 14px; margin:5px 0; border-radius:15px; max-width:75%; position:relative; word-wrap:break-word; font-size:15px; }
+.message .time { font-size:11px; color:#888; margin-top:3px; text-align:right; }
+.sent { background:var(--sent-bg); color:var(--sent-color); align-self:flex-end; border-bottom-right-radius:0; }
+.received { background:var(--received-bg); color:var(--received-color); align-self:flex-start; border-bottom-left-radius:0; }
+
+#chatInput { display:flex; padding:10px; background:#fff; align-items:center; }
+#chatInput input { flex:1; padding:10px; border-radius:25px; border:1px solid #ccc; outline:none; margin-right:10px; }
+#chatInput button { padding:10px 15px; border:none; border-radius:25px; background:var(--primary); color:#fff; cursor:pointer; font-weight:bold; }
+#emojiBtn { font-size:22px; background:#fff; color:var(--primary); border:1px solid #ccc; cursor:pointer; border-radius:50%; width:42px; height:42px; margin-right:10px; display:flex; justify-content:center; align-items:center; }
+
+.menu { position:absolute; background:#fff; border:1px solid #ccc; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.2); display:none; z-index:10; }
+.menu button { display:block; width:100%; padding:8px 12px; border:none; background:none; cursor:pointer; text-align:left; font-weight:500; }
+.menu button:hover { background:#f0f0f0; }
+
+.blur-overlay { position:fixed; top:0; left:0; width:100vw; height:100vh; background:black; opacity:0.95; z-index:9999; display:none; }
+
+#emojiPicker { position:absolute; bottom:60px; left:10px; background:#fff; border:1px solid #ccc; border-radius:10px; padding:10px; display:none; width:300px; max-height:300px; overflow:auto; box-shadow:0 2px 12px rgba(0,0,0,0.3); z-index:20; }
+#emojiPicker input { width:100%; padding:6px 10px; margin-bottom:8px; border-radius:6px; border:1px solid #ccc; outline:none; }
+#emojiTabs { display:flex; margin-bottom:5px; flex-wrap:wrap; }
+#emojiTabs button { flex:1; padding:5px 8px; margin:2px; border:none; background:#f0f0f0; border-radius:6px; cursor:pointer; font-size:14px; }
+#emojiTabs button.active { background:var(--primary); color:#fff; }
+#emojiGrid span { cursor:pointer; font-size:22px; padding:5px; display:inline-block; }
+#emojiGrid span:hover { background:#f0f0f0; border-radius:5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h2 id="chatWith"></h2>
+  <div>
+    <button id="toggleFriendListBtn">👥 Friends</button>
+    <button class="themeToggle" id="themeToggle">🌙</button>
+    <button id="backBtn">Back</button>
+    <button id="clearAllBtn" style="margin-left:10px; padding:6px 10px; border:none; border-radius:6px; cursor:pointer; background:#ff4d4d; color:#fff; font-weight:bold;">Clear All</button>
+  </div>
+</header>
+
+<div id="friendList"></div>
+<div id="chatContainer"></div>
+
+<div id="chatInput">
+  <button id="emojiBtn">😊</button>
+  <input type="text" id="messageInput" placeholder="Message">
+  <button id="sendBtn">Send</button>
+</div>
+
+<div id="emojiPicker">
+  <input type="text" id="emojiSearch" placeholder="Search Emoji">
+  <div id="emojiTabs"></div>
+  <div id="emojiGrid"></div>
+</div>
+
+<div class="menu" id="messageMenu">
+  <button id="editMsgBtn">Edit</button>
+  <button id="deleteMsgBtn">Delete</button>
+</div>
+
+<div class="blur-overlay" id="blurOverlay"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, updateDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+const firebaseConfig = { apiKey:"AIzaSyAOo_C6jSzmo29pmA8auVHJjUfhG_2VkPA", authDomain:"socialmedia-f0aae.firebaseapp.com", projectId:"socialmedia-f0aae", storageBucket:"socialmedia-f0aae.appspot.com", messagingSenderId:"235426334482", appId:"1:235426334482:web:040fe1af1cc91d780d15cb" };
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const chatContainer = document.getElementById('chatContainer');
+const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+const backBtn = document.getElementById('backBtn');
+const chatWithTitle = document.getElementById('chatWith');
+const messageMenu = document.getElementById('messageMenu');
+const editMsgBtn = document.getElementById('editMsgBtn');
+const deleteMsgBtn = document.getElementById('deleteMsgBtn');
+const blurOverlay = document.getElementById('blurOverlay');
+const clearAllBtn = document.getElementById('clearAllBtn');
+const emojiBtn = document.getElementById('emojiBtn');
+const emojiPicker = document.getElementById('emojiPicker');
+const emojiSearch = document.getElementById('emojiSearch');
+const emojiTabs = document.getElementById('emojiTabs');
+const emojiGrid = document.getElementById('emojiGrid');
+const themeToggle = document.getElementById('themeToggle');
+const friendListDiv = document.getElementById('friendList');
+const toggleFriendListBtn = document.getElementById('toggleFriendListBtn');
+
+let currentUser, chatUserId, chatId, selectedMsgId;
+const urlParams = new URLSearchParams(window.location.search);
+chatUserId = urlParams.get('uid');
+
+// --- Emoji Setup ---
+const emojiCategories = {
+  "Smileys & People": ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝'],
+  "Animals & Nature": ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯'],
+  "Food & Drink": ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓'],
+  "Activities & Sports": ['⚽','🏀','🏈','⚾'],
+  "Travel & Places": ['🚗','🚕','🚙','🚌','🚎'],
+  "Flags": ['🏳️','🏴','🏁','🚩','🇧🇩'],
+  "Love & Relationships": ['❤️','🧡','💛','💚','💙'],
+  "Symbols & Objects": ['☮️','✝️','☪️','🕉️','☸️']
+};
+function loadEmojiCategory(cat){
+  emojiGrid.innerHTML='';
+  emojiCategories[cat].forEach(e=>{
+    const span=document.createElement('span');
+    span.textContent=e;
+    span.onclick=()=>{ messageInput.value+=e; messageInput.focus(); };
+    emojiGrid.appendChild(span);
+  });
+}
+Object.keys(emojiCategories).forEach((cat,i)=>{
+  const btn=document.createElement('button'); btn.textContent=cat;
+  if(i===0) btn.classList.add('active');
+  btn.onclick=()=>{ document.querySelectorAll('#emojiTabs button').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); loadEmojiCategory(cat); };
+  emojiTabs.appendChild(btn);
+});
+loadEmojiCategory(Object.keys(emojiCategories)[0]);
+emojiSearch.addEventListener('input', ()=>{ const val = emojiSearch.value.toLowerCase(); emojiGrid.querySelectorAll('span').forEach(s=>{ s.style.display = s.textContent.includes(val)?'inline-block':'none'; }); });
+emojiBtn.onclick=()=>emojiPicker.style.display=emojiPicker.style.display==='block'?'none':'block';
+themeToggle.onclick=()=>{ document.body.classList.toggle('dark-theme'); themeToggle.textContent=document.body.classList.contains('dark-theme')?'☀️':'🌙'; };
+
+// Prevent right-click & PrintScreen
+document.addEventListener('contextmenu', e=>e.preventDefault());
+document.addEventListener('keydown', e=>{ if(e.key==='PrintScreen' || (e.ctrlKey && e.key==='p') || e.key==='F12'){ blurOverlay.style.display='block'; setTimeout(()=>blurOverlay.style.display='none',800); e.preventDefault(); } });
+let pressTimer;
+document.addEventListener('touchstart', e=>{ pressTimer=setTimeout(()=>{ blurOverlay.style.display='block'; setTimeout(()=>blurOverlay.style.display='none',800); },700); });
+document.addEventListener('touchend', e=>clearTimeout(pressTimer));
+
+// --- Toggle Friend List ---
+toggleFriendListBtn.onclick = () => {
+  friendListDiv.style.display = friendListDiv.style.display==='block'?'none':'block';
+};
+
+// --- Auth & Friend List ---
+onAuthStateChanged(auth, async user=>{
+  if(!user){ window.location.href='index.html'; return; }
+  currentUser=user;
+
+  // Load Friend List (only currentUser's friends)
+  const currentUserDoc = await getDoc(doc(db,'users',currentUser.uid));
+  const friendsUIDs = currentUserDoc.data()?.friends || [];
+
+  friendListDiv.innerHTML='';
+  for(const uid of friendsUIDs){
+    const friendSnap = await getDoc(doc(db,'users',uid));
+    if(!friendSnap.exists()) continue;
+    const data = friendSnap.data();
+    const div = document.createElement('div');
+    div.classList.add('friend');
+    div.textContent = data.name;
+
+    const statusDot = document.createElement('span');
+    statusDot.style.width='10px'; statusDot.style.height='10px';
+    statusDot.style.borderRadius='50%';
+    statusDot.style.display='inline-block';
+    statusDot.style.marginLeft='8px';
+    statusDot.style.background='red';
+    div.appendChild(statusDot);
+
+    const statusRef = doc(db,'status',uid);
+    onSnapshot(statusRef, snap=>{ statusDot.style.background = snap.exists() && snap.data().state==='online'?'green':'red'; });
+
+    div.onclick = ()=>{ window.location.href=`chat.html?uid=${uid}`; };
+    friendListDiv.appendChild(div);
+  }
+
+  // --- Load Chat if uid param exists ---
+  if(chatUserId){
+    const chatUserSnap = await getDoc(doc(db,'users',chatUserId));
+    if(chatUserSnap.exists()){
+      chatWithTitle.textContent = chatUserSnap.data().name;
+      chatId=[currentUser.uid,chatUserId].sort().join("_");
+      const messagesRef=collection(db,'chats',chatId,'messages');
+      const q=query(messagesRef, orderBy('timestamp'));
+      onSnapshot(q,snap=>{
+        chatContainer.innerHTML='';
+        snap.forEach(docSnap=>{
+          const data=docSnap.data();
+          const div=document.createElement('div');
+          div.textContent=data.text;
+          div.classList.add('message',data.sender===currentUser.uid?'sent':'received');
+          div.dataset.id=docSnap.id;
+          const timeSpan=document.createElement('div'); timeSpan.classList.add('time');
+          const date=data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
+          timeSpan.textContent=date.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+          div.appendChild(timeSpan);
+          if(data.sender===currentUser.uid){
+            div.addEventListener('contextmenu', e=>{ e.preventDefault(); selectedMsgId=docSnap.id; messageMenu.style.display='block'; messageMenu.style.top=e.clientY+'px'; messageMenu.style.left=e.clientX+'px'; });
+          }
+          chatContainer.appendChild(div);
+        });
+        chatContainer.scrollTop=chatContainer.scrollHeight;
+      });
+    }
+  }
+});
+
+// --- Send/Edit/Delete/Clear ---
+sendBtn.onclick=async ()=>{
+  const text=messageInput.value.trim();
+  if(!text||!chatId) return;
+  await addDoc(collection(db,'chats',chatId,'messages'),{ text, sender:currentUser.uid, timestamp:new Date() });
+  messageInput.value=''; messageMenu.style.display='none'; emojiPicker.style.display='none';
+};
+editMsgBtn.onclick=async ()=>{
+  const newText=prompt("Edit Message:");
+  if(newText && selectedMsgId){ await updateDoc(doc(db,'chats',chatId,'messages',selectedMsgId),{ text:newText }); }
+  messageMenu.style.display='none';
+};
+deleteMsgBtn.onclick=async ()=>{
+  if(selectedMsgId && confirm("Delete this message?")){ await deleteDoc(doc(db,'chats',chatId,'messages',selectedMsgId)); }
+  messageMenu.style.display='none';
+};
+// --- Clear All button ---
+clearAllBtn.onclick = async () => {
+  if (!chatId || !confirm("Are you sure you want to clear your chat view?")) return;
+
+  const messagesRef = collection(db, 'chats', chatId, 'messages');
+  const snap = await getDocs(messagesRef);
+  snap.forEach(docSnap => {
+    const msgRef = doc(db, 'chats', chatId, 'messages', docSnap.id);
+    updateDoc(msgRef, {
+      hiddenFor: docSnap.data().hiddenFor ? [...docSnap.data().hiddenFor, currentUser.uid] : [currentUser.uid]
+    });
+  });
+
+  // Local UI থেকে সব মেসেজ মুছে দিন
+  chatContainer.innerHTML = '';
+};
+
+// --- মেসেজ লোড করার সময় hiddenFor চেক করুন ---
+if(chatUserId){
+  const chatUserSnap = await getDoc(doc(db,'users',chatUserId));
+  if(chatUserSnap.exists()){
+    chatWithTitle.textContent = chatUserSnap.data().name;
+
+    chatId = [currentUser.uid, chatUserId].sort().join("_");
+    const messagesRef = collection(db,'chats',chatId,'messages');
+    const q = query(messagesRef, orderBy('timestamp'));
+    onSnapshot(q, snap => {
+      chatContainer.innerHTML = '';
+      snap.forEach(docSnap => {
+        const data = docSnap.data();
+
+        // যদি currentUser UID hiddenFor এ থাকে, skip
+        if(data.hiddenFor && data.hiddenFor.includes(currentUser.uid)) return;
+
+        const div = document.createElement('div');
+        div.textContent = data.text;
+        div.classList.add('message', data.sender===currentUser.uid?'sent':'received');
+        div.dataset.id = docSnap.id;
+
+        const timeSpan = document.createElement('div');
+        timeSpan.classList.add('time');
+        const date = data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
+        timeSpan.textContent = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        div.appendChild(timeSpan);
+
+        if(data.sender===currentUser.uid){
+          div.addEventListener('contextmenu', e=>{
+            e.preventDefault();
+            selectedMsgId = docSnap.id;
+            messageMenu.style.display='block';
+            messageMenu.style.top = e.clientY+'px';
+            messageMenu.style.left = e.clientX+'px';
+          });
+        }
+
+        chatContainer.appendChild(div);
+      });
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
+  }
+}
+
+
+// Close menu/emoji when clicking outside
+document.addEventListener('click', e=>{
+  if(!messageMenu.contains(e.target)) messageMenu.style.display='none';
+  if(!emojiPicker.contains(e.target) && e.target!==emojiBtn) emojiPicker.style.display='none';
+});
+backBtn.onclick=()=>window.location.href='index.html';
+onSnapshot(q, snap => {
+  chatContainer.innerHTML = '';
+
+  // ডকুমেন্ট লিস্ট তৈরি করুন
+  const messages = [];
+  snap.forEach(docSnap => {
+    const data = docSnap.data();
+    // যদি currentUser UID hiddenFor এ থাকে, skip
+    if (data.hiddenFor && data.hiddenFor.includes(currentUser.uid)) return;
+    messages.push({ id: docSnap.id, data });
+  });
+
+  // মেসেজগুলো reverse করে যোগ করুন যাতে নিচ থেকে উপরে দেখায়
+  messages.reverse().forEach(msg => {
+    const data = msg.data;
+    const div = document.createElement('div');
+    div.textContent = data.text;
+    div.classList.add('message', data.sender === currentUser.uid ? 'sent' : 'received');
+    div.dataset.id = msg.id;
+
+    const timeSpan = document.createElement('div');
+    timeSpan.classList.add('time');
+    const date = data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
+    timeSpan.textContent = date.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    div.appendChild(timeSpan);
+
+    if (data.sender === currentUser.uid) {
+      div.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        selectedMsgId = msg.id;
+        messageMenu.style.display='block';
+        messageMenu.style.top = e.clientY+'px';
+        messageMenu.style.left = e.clientX+'px';
+      });
+    }
+
+    // উপরের দিকে append না করে নিচে push করা
+    chatContainer.appendChild(div);
+  });
+
+  // নিচে scroll করুন
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+});
+
+</script>
+</body>
+</html>

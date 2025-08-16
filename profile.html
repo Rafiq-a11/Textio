@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile</title>
+<style>
+body { font-family: Arial; background:#f0f2f5; display:flex; justify-content:center; padding-top:20px; }
+.container { background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.1); width:400px; }
+h2 { text-align:center; color:#4267B2; margin-bottom:20px; }
+input { width:100%; padding:10px; margin:10px 0; border-radius:8px; border:1px solid #ccc; outline:none; }
+input:focus { border-color:#4267B2; }
+button { padding:10px; width:100%; border:none; border-radius:8px; background:#4267B2; color:#fff; cursor:pointer; margin-top:10px; }
+button:hover { background:#365899; }
+img { width:100px; height:100px; border-radius:50%; display:block; margin:auto; margin-bottom:10px; object-fit:cover; border:2px solid #4267B2; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>আমার প্রোফাইল</h2>
+  <img id="profilePhoto" src="https://via.placeholder.com/100">
+  <input type="text" id="name" placeholder="নাম">
+  <input type="text" id="address" placeholder="ঠিকানা">
+  <input type="text" id="mobile" placeholder="মোবাইল">
+  <input type="email" id="email" placeholder="ইমেইল" disabled>
+  <input type="file" id="photoInput" accept="image/*">
+  <button id="saveBtn">Save</button>
+  <button id="backBtn">Back</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAOo_C6jSzmo29pmA8auVHJjUfhG_2VkPA",
+  authDomain: "socialmedia-f0aae.firebaseapp.com",
+  projectId: "socialmedia-f0aae",
+  storageBucket: "socialmedia-f0aae.appspot.com",
+  messagingSenderId: "235426334482",
+  appId: "1:235426334482:web:040fe1af1cc91d780d15cb",
+  measurementId: "G-GPLMY41F0J"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+let currentUser;
+const profilePhoto = document.getElementById('profilePhoto');
+const nameInput = document.getElementById('name');
+const addressInput = document.getElementById('address');
+const mobileInput = document.getElementById('mobile');
+const emailInput = document.getElementById('email');
+const photoInput = document.getElementById('photoInput');
+const saveBtn = document.getElementById('saveBtn');
+const backBtn = document.getElementById('backBtn');
+
+onAuthStateChanged(auth, user => {
+  if(!user) { window.location.href='index.html'; return; }
+  currentUser = user;
+  loadProfile();
+});
+
+async function loadProfile(){
+  const snap = await getDoc(doc(db,'users',currentUser.uid));
+  const data = snap.data();
+  nameInput.value = data.name || '';
+  addressInput.value = data.profile?.address || '';
+  mobileInput.value = data.profile?.mobile || '';
+  emailInput.value = data.email || '';
+  profilePhoto.src = data.profile?.photo ? data.profile.photo + '?t=' + new Date().getTime() : 'https://via.placeholder.com/100';
+}
+
+// Save profile
+saveBtn.onclick = async () => {
+  let photoURL = profilePhoto.src;
+
+  if(photoInput.files.length > 0){
+    const file = photoInput.files[0];
+    const storageRef = ref(storage, `profiles/${currentUser.uid}/${file.name}`);
+    await uploadBytes(storageRef, file);
+    photoURL = await getDownloadURL(storageRef);
+  }
+
+  await updateDoc(doc(db,'users',currentUser.uid),{
+    name: nameInput.value,
+    profile: { address: addressInput.value, mobile: mobileInput.value, photo: photoURL }
+  });
+
+  profilePhoto.src = photoURL + '?t=' + new Date().getTime(); // browser cache bypass
+  alert("Profile updated!");
+};
+
+// Back
+backBtn.onclick = () => window.location.href='home.html';
+</script>
+</body>
+</html>
